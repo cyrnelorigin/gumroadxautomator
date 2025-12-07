@@ -1,0 +1,14 @@
+{
+  "name": "cyrnel-origin-automator",
+  "version": "2.1.0",
+  "description": "Cyrnel Origin Production Automation",
+  "type": "module",
+  "scripts": {},
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "resend": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
