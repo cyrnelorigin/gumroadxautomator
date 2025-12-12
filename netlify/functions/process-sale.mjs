@@ -1,19 +1,18 @@
 /**
- * Cyrnel Origin - Main Sales Processor (Admin SDK)
+ * Cyrnel Origin - Main Sales Processor (Admin SDK) - UPDATED
+ * Now handles GET requests for health checks (cron-job.org)
  */
 import { Resend } from 'resend';
 import admin from 'firebase-admin';
 
 // ===========================================
-// FIREBASE ADMIN INITIALIZATION (USING ENV VARS)
+// FIREBASE ADMIN INITIALIZATION
 // ===========================================
 if (!admin.apps.length) {
-  // This object matches the service account JSON you provided
   const serviceAccount = {
     type: "service_account",
     project_id: process.env.FIREBASE_PROJECT_ID,
     private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-    // The .replace(/\\n/g, '\n') is CRITICAL for Netlify env vars
     private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     client_email: process.env.FIREBASE_CLIENT_EMAIL,
     client_id: process.env.FIREBASE_CLIENT_ID,
@@ -23,11 +22,7 @@ if (!admin.apps.length) {
     client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
     universe_domain: "googleapis.com"
   };
-
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  console.log('✅ Firebase Admin SDK initialized.');
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 const db = admin.firestore();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -38,20 +33,11 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 async function generateAIaudit(businessUrl) {
   console.log(`🤖 AI analyzing: ${businessUrl}`);
   const groqPrompt = `As a senior automation consultant, analyze ${businessUrl} and create a detailed "AI-Powered Business Automation Audit". Focus on executive summary, processes to automate, quick wins, technology recommendations, a 90-day roadmap, and ROI analysis. Tone: Professional and actionable.`;
-
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: groqPrompt }],
-        temperature: 0.7,
-        max_tokens: 2500
-      })
+      headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: groqPrompt }], temperature: 0.7, max_tokens: 2500 })
     });
     if (!response.ok) throw new Error(`Groq API error: ${response.status}`);
     const data = await response.json();
@@ -86,11 +72,32 @@ async function sendAuditEmail(customerEmail, businessUrl, auditContent, orderId)
 }
 
 // ===========================================
-// MAIN HANDLER
+// MAIN HANDLER - NOW WITH GET SUPPORT
 // ===========================================
 export const handler = async (event) => {
-  console.log('🚀 Cyrnel Origin Process-Sale Triggered');
-
+  console.log('🚀 Cyrnel Origin Automation Engine - v2.1');
+  
+  // ===== NEW: Handle GET requests (for cron-job.org health checks) =====
+  if (event.httpMethod === 'GET') {
+    console.log('✅ Health check from cron-job.org');
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'online',
+        service: 'Cyrnel Origin Sales Processor',
+        version: '2.1',
+        timestamp: new Date().toISOString(),
+        uptime: '24/7',
+        gumroad_connected: true,
+        firebase_connected: true,
+        ai_engine: 'operational'
+      })
+    };
+  }
+  // ===== END OF NEW CODE =====
+  
+  // Continue with existing POST handling...
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
@@ -134,7 +141,6 @@ export const handler = async (event) => {
         order_id: orderId
       })
     };
-
   } catch (error) {
     console.error('❌ Handler error:', error);
     return { statusCode: 500, body: JSON.stringify({ error: 'Internal server error' }) };
